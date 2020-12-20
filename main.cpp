@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <charconv>
 
 #include <random>
 #include <chrono>
@@ -31,6 +32,7 @@ using TBenchKey = size_t;// std::string;
 using TBenchValue = int;
 
 static constexpr bool BENCH_IS_POLYMORPHIC = false;
+static double BENCH_TIME_LIMIT_SEC = 1.0;
 
 static constexpr size_t BENCH_SET = 10;
 
@@ -100,13 +102,41 @@ template<template<typename> typename TTableType, typename THashType>
 std::vector<double>
 launch_bench();
 
+// КТО ПРОЧИТАЛ ТОТ СДелайте, пожалуйста, следующим группам такие лабы
+// не в самом конце семестра, и с адекватными дедлайнами, чтобы у людей была
+// возможность поработать над действительно интересными задачами 
+// (писать 2K строк кода в самом конце сема неприятно).
 int main(int argc, char* argv[])
 {
     if (argc < 4)
     {
         std::cerr << "USAGE: " << argv[0] << 
             " TABLE_TYPE HASHER_TYPE OUTFILE\n";
+        std::cerr << 
+            "TABLE TYPES:\n" 
+            "linear quadro double chain75 chain95 cuckoo\n";
+        std::cerr << 
+            "HASHER TYPES:\n" 
+            "std murmur3 sha256 md5 polynomial tabulation rabinkarp addition\n";
         return 1;
+    }
+
+    if (argc >= 5)
+    {
+        int time_limit = 0;
+        const char* first = argv[4];
+        const char* last = first + strlen(first);
+        auto [ptr, ec] = std::from_chars(first, last, time_limit);
+
+        if (ec == std::errc{} && time_limit > 0)
+        {
+            BENCH_TIME_LIMIT_SEC = static_cast<double>(time_limit);
+        }
+        else
+        {
+            std::cerr << "INVALID TIME LIMIT NUMBER\n";
+            return 1;
+        }
     }
 
     std::vector<double> result;
@@ -135,9 +165,10 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    fout << "Size,Time\n";
+    fout << "Size[uint64_t's],Time[microsec's]\n";
     size_t count = 0u;
-    for (size_t size = BENCH_MIN; size < BENCH_MAX; 
+    for (size_t size = BENCH_MIN; 
+         size < BENCH_MAX && count < result.size(); 
          (size = (size * 3u) / 2u), ++count)
     {
         fout << size << ", " << result[count] << "\n";
@@ -164,7 +195,7 @@ double run_template(TRandGen&& rand_gen, THashTable* ht,
     }
     auto end = std::chrono::high_resolution_clock::now();
     return std::chrono::
-        duration_cast<std::chrono::nanoseconds>(end - start).count();
+        duration_cast<std::chrono::microseconds>(end - start).count();
 }
 
 template<typename TRandGen>
@@ -186,7 +217,7 @@ double run_polymorphic(TRandGen&& rand_gen,
     }
     auto end = std::chrono::high_resolution_clock::now();
     return std::chrono::
-        duration_cast<std::chrono::nanoseconds>(end - start).count();
+        duration_cast<std::chrono::microseconds>(end - start).count();
 }
 
 template<typename THashTable>
@@ -223,6 +254,9 @@ std::vector<double> bench()
         }
 
         result.push_back(sum_duration / (size * BENCH_SET));
+
+        if (sum_duration > BENCH_TIME_LIMIT_SEC * 1e6)
+            break;
     }
 
     return result;

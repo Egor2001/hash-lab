@@ -30,7 +30,7 @@ public:
 
 private:
     alignas(sizeof(size_t)) mutable
-    unsigned char hash_[SHA_DIGEST_LENGTH] = {};
+    unsigned char hash_[SHA256_DIGEST_LENGTH] = {};
 };
 
 } // namespace
