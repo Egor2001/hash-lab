@@ -19,6 +19,11 @@ public:
             throw std::invalid_argument("error: mod == 0");
     }
 
+    // Is needed just for simplicity
+    CAdditionHasher():
+        CAdditionHasher(1000000007)
+    {}
+
     [[nodiscard]]
     virtual size_t operator()
         (const uint8_t* data, size_t size) const noexcept final override

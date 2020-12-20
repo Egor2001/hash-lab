@@ -29,7 +29,7 @@ public:
     }
 
 private:
-    mutable alignas(sizeof(size_t)) 
+    alignas(sizeof(size_t)) mutable
     unsigned char hash_[MD5_DIGEST_LENGTH] = {};
 };
 

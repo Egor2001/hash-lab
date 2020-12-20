@@ -13,15 +13,6 @@ namespace {
 class CTabulationHasher final : public IHasher
 {
 public:
-    CTabulationHasher():
-        IHasher()
-    {
-        std::hash<size_t> helper;
-        for (size_t tab = 0u; tab < sizeof(size_t); ++tab)
-            for (size_t byte = 0u; byte < 0x100; ++byte)
-                tabs_[tab][byte] = helper((tab * 0x9e3779b9) ^ byte);
-    }
-
     template<typename TInitFunc>
     explicit CTabulationHasher(TInitFunc func):
         IHasher()
@@ -34,6 +25,17 @@ public:
             }
         }
     }
+
+    // Is needed just for simplicity
+    CTabulationHasher():
+        CTabulationHasher(
+                [helper = std::hash<size_t>()]
+                (size_t tab, size_t byte) -> size_t 
+                { 
+                    return helper((tab * 0x9e3779b9) ^ byte); 
+                }
+            )
+    {}
 
     [[nodiscard]]
     virtual size_t operator()

@@ -35,6 +35,11 @@ public:
         }
     }
 
+    // Is needed just for simplicity
+    CPolynomialHasher():
+        CPolynomialHasher(1000000007, { 3, 5, 7, 11 })
+    {}
+
     [[nodiscard]]
     virtual size_t operator()
         (const uint8_t* data, size_t size) const noexcept final override

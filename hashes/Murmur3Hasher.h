@@ -17,6 +17,11 @@ public:
         seed_(seed)
     {}
 
+    // Is needed just for simplicity
+    CMurmur3Hasher():
+        CMurmur3Hasher(0xe6546b64UL)
+    {}
+
     [[nodiscard]] 
     virtual size_t operator()
         (const uint8_t* data, size_t size) const noexcept final override

@@ -23,6 +23,11 @@ public:
             throw std::invalid_argument("error: val_ % mod_ == 0");
     }
 
+    // Is needed just for simplicity
+    CRabinKarpHasher():
+        CRabinKarpHasher(1000000007, 17)
+    {}
+
     [[nodiscard]]
     virtual size_t operator()
         (const uint8_t* data, size_t size) const noexcept final override

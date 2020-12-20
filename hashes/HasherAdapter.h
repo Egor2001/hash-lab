@@ -10,6 +10,8 @@ template<typename THasher>
 class CHasherAdapter
 {
 public:
+    CHasherAdapter() = default;
+
     explicit CHasherAdapter(const THasher& hasher):
         hasher_(hasher)
     {}
