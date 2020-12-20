@@ -1,5 +1,7 @@
 # Custom
 bin/
+obj/
+build/
 tags
 
 # Prerequisites
