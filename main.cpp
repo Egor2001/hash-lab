@@ -165,7 +165,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    fout << "Size[uint64_t's],Time[microsec's]\n";
+    fout << "Size,Time\n";
     size_t count = 0u;
     for (size_t size = BENCH_MIN; 
          size < BENCH_MAX && count < result.size(); 
