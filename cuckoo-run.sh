@@ -6,10 +6,6 @@ then
     exit
 fi
 
-echo 'LAUNCH cuckoo std...'
-./bin/main cuckoo murmur3 bench/cuckoo-std.txt $1
-echo 'GENERATED bench/cuckoo-std.txt'
-
 echo 'LAUNCH cuckoo sha256...'
 ./bin/main cuckoo murmur3 bench/cuckoo-sha256.txt $1
 echo 'GENERATED bench/cuckoo-sha256.txt'
