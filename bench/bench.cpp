@@ -1,18 +1,19 @@
 #include "IHashTable.h"
-#include "ChainHashTable.h"
+#include "IOpenAddrHashTable.h"
 #include "OpenLinearAddrHashTable.h"
 #include "OpenQuadroAddrHashTable.h"
 #include "OpenDoubleAddrHashTable.h"
+#include "ChainHashTable.h"
 #include "CuckooHashTable.h"
 
-#include "hashes/IHasher.h"
-#include "hashes/HasherAdapter.h"
-#include "hashes/TabulationHasher.h"
-#include "hashes/PolynomialHasher.h"
-#include "hashes/RabinKarpHasher.h"
-#include "hashes/AdditionHasher.h"
-#include "hashes/Murmur3Hasher.h"
-#include "hashes/MdFamilyHasher.h"
+#include "IHasher.h"
+#include "HasherAdapter.h"
+#include "TabulationHasher.h"
+#include "PolynomialHasher.h"
+#include "RabinKarpHasher.h"
+#include "AdditionHasher.h"
+#include "Murmur3Hasher.h"
+#include "MdFamilyHasher.h"
 
 #include <iostream>
 #include <fstream>
@@ -24,12 +25,52 @@
 #include <vector>
 #include <cstring>
 
+using TBenchKey = std::string;
 using TBenchValue = int;
+
+static bool BENCH_IS_POLYMORPHIC = false;
 
 static constexpr size_t BENCH_SET = 10;
 
 static constexpr size_t BENCH_MIN = 10;
-static constexpr size_t BENCH_MAX = 10'000'000;
+static constexpr size_t BENCH_MAX = 100'000'000;
+
+template<typename THash> // "linear"
+using TLinearHT = COpenLinearAddrHashTable<TBenchKey, TBenchValue, THash>;
+
+template<typename THash> // "quadro"
+using TQuadroHT = COpenQuadroAddrHashTable<TBenchKey, TBenchValue, THash>;
+
+template<typename THash> // "double"
+using TDoubleHT = COpenDoubleAddrHashTable<TBenchKey, TBenchValue, THash, 
+                                           std::hash<TBenchKey>>;
+
+template<typename THash> // "chain75"
+using TChain75HT = CChainHashTable<TBenchKey, TBenchValue, THash, 4u>;
+
+template<typename THash> // "chain95"
+using TChain95HT = CChainHashTable<TBenchKey, TBenchValue, THash, 20u>;
+
+template<typename THash> // "cuckoo"
+using TCuckooHT = CCuckooHashTable<TBenchKey, TBenchValue, THash, 
+                                   std::hash<TBenchKey>>;
+
+// "std"
+using TStdHF = std::hash<TBenchKey>;
+// "murmur3"
+using TMurmurHF = CHasherAdapter<CMurmur3Hasher>;
+// "sha256"
+using TShaHF = CHasherAdapter<CSHA256Hasher>;
+// "md5"
+using TMdHF = CHasherAdapter<CMD5Hasher>;
+// "polynomial"
+using TPolynomialHF = CHasherAdapter<CPolynomialHasher>;
+// "tabulation"
+using TTabulationHF = CHasherAdapter<CTabulationHasher>;
+// "rabinkarp"
+using TRabinKarpHF = CHasherAdapter<CRabinKarpHasher>;
+// "addition"
+using TAdditionHF = CHasherAdapter<CAdditionHasher>;
 
 template<typename TRandGen, typename TKey, 
          template<typename, typename> typename THashTable>
@@ -76,8 +117,7 @@ double run_polymorphic(TRandGen&& rand_gen,
         duration_cast<std::chrono::nanoseconds>(end - start).count();
 }
 
-template<bool NIsPolymorphic = false, 
-         template<typename, typename> typename THashTable>
+template<template<typename, typename> typename THashTable>
 void bench(std::vector<double>& result_vec)
 {
     std::random_device seed_dev;
@@ -103,7 +143,7 @@ void bench(std::vector<double>& result_vec)
             std::shuffle(std::begin(data), std::end(data), rand_gen);
 
             THashTable<size_t, TBenchValue> ht;
-            if constexpr (NIsPolymorphic)
+            if constexpr (BENCH_IS_POLYMORPHIC)
                 sum_duration += run_polymorphic(rand_gen, &ht, keys, data);
             else
                 sum_duration += run_template(rand_gen, &ht, keys, data);
@@ -113,44 +153,97 @@ void bench(std::vector<double>& result_vec)
     }
 }
 
+std::vector<double>
+launch_table(std::string_view table_name, 
+             std::string_view hash_name)
+{
+    if (table_name == "linear")
+        return launch_hash<TLinearHT>(left_hash_name);
+    if (table_name == "quadro")
+        return launch_hash<TQuadroHT>(left_hash_name);
+    if (table_name == "double")
+        return launch_hash<TDoubleHT>(left_hash_name);
+    if (table_name == "chain75")
+        return launch_hash<TChain75HT>(left_hash_name);
+    if (table_name == "chain95")
+        return launch_hash<TChain95HT>(left_hash_name);
+    if (table_name == "cuckoo")
+        return launch_hash<TCuckooHT>(left_hash_name);
+
+    throw std::invalid_argument("error: no such table type");
+}
+
+template<template<typename, typename> typename TTableType>
+std::vector<double>
+launch_left_hash(std::string_view hash_name)
+{
+    if (hash_name == "std")
+        return launch_bench<TTableType, TStdHF>();
+    if (hash_name == "murmur3")
+        return launch_bench<TTableType, TMurmurHF>();
+    if (hash_name == "sha256")
+        return launch_bench<TTableType, TShaHF>();
+    if (hash_name == "md5")
+        return launch_bench<TTableType, TMdHF>();
+    if (hash_name == "polynomial")
+        return launch_bench<TTableType, TPolynomialHF>();
+    if (hash_name == "tabulation")
+        return launch_bench<TTableType, TTabulationHF>();
+    if (hash_name == "rabinkarp")
+        return launch_bench<TTableType, TRabinKarpHF>();
+    if (hash_name == "addition")
+        return launch_bench<TTableType, TAdditionHF>();
+    
+    throw std::invalid_argument("error: no such hash type");
+}
+
+template<template<typename> typename TTableType, typename THashType>
+void launch_bench()
+{
+    return bench<TTableType<THashType>>();
+}
+
 int main(int argc, char* argv[])
 {
+    if (argc < 4)
+    {
+        std::cerr << "USAGE: " << argv[0] << 
+            " TABLE_TYPE HASHER_TYPE OUTFILE\n";
+        return 1;
+    }
+
     std::vector<double> result;
-
-    if (argc < 2)
+    try {
+        result = launch_table(argv[1], argv[2]);
+    }
+    catch (std::exception& exc)
     {
-        std::cerr << "ERROR: no args\n";
+        std::cerr << exc.what() << '\n';
+        std::cerr << 
+            "TABLE TYPES:\n" 
+            "linear quadro double chain75 chain95 cuckoo\n";
+        std::cerr << 
+            "HASHER TYPES:\n" 
+            "std murmur3 sha256 md5 polynomial tabulation rabinkarp addition\n";
         return 1;
     }
 
-    if (strcmp(argv[1], "chain") == 0)
-    {
-        bench<false, CChainHashTable>(result);
+    std::ofstream fout;
+    try {
+        fout = std::ofstream(argv[3]);
     }
-    else if (strcmp(argv[1], "linear") == 0)
+    catch (std::exception& exc)
     {
-        bench<false, COpenLinearAddrHashTable>(result);
-    }
-    else if (strcmp(argv[1], "quadro") == 0)
-    {
-        bench<false, COpenQuadroAddrHashTable>(result);
-    }
-    else if (strcmp(argv[1], "double") == 0)
-    {
-        bench<false, COpenDoubleAddrHashTable>(result);
-    }
-    else
-    {
-        std::cerr << "ERROR: " << argv[1] << " is not ht\n";
+        std::cerr << exc.what() << '\n';
         return 1;
     }
 
-    std::cout << "Size,Time\n";
+    fout << "Size,Time\n";
     size_t count = 0u;
     for (size_t size = BENCH_MIN; size < BENCH_MAX; 
          (size = (size * 3u) / 2u), ++count)
     {
-        std::cout << size << ", " << result[count] << "\n";
+        fout << size << ", " << result[count] << "\n";
     }
 
     return 0;
