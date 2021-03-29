@@ -9,4 +9,4 @@ make
 ./viz.py
 
 ## results
-See .png files in bench/ dir
+See task.pdf
