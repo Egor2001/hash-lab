@@ -9,4 +9,4 @@ make
 ./viz.py
 
 ## results
-See task.pdf
+See result.pdf as solution for task.pdf
